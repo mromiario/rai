@@ -1,0 +1,9 @@
+Package: jugs
+Title: Water Jugs Problem
+Version: 0.1
+Authors@R: as.person(c("Wisnu Adi Nurcahyo <wisn.adn@gmail.com>))
+Description: A Water Jugs Problem solver using BFS strategy
+License: MIT
+Depends: R (>= 3.4.4)
+Imports:
+  data.tree (>= 0.7.6)
