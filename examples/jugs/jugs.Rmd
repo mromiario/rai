@@ -1,0 +1,175 @@
+---
+title: "Water Jugs Problem"
+author: "Wisnu Adi Nurcahyo"
+date: "September 15th, 2018"
+output:
+  html_document:
+    df_print: paged
+---
+
+An AI example of water jugs problem in R using BFS (Breadth-First Search) strategy.
+This R Notebook project is converted to HTML which means we won't be able to run the R code below on our browser.
+You need an RStudio to runs them interactively.
+
+## Problem Description
+
+There are two jugs with a maximum capacity of $N$ and $M$ consecutively.
+Let say that the first water jug $A$ has a capacity of $N$ liters.
+The second water jug $B$ has a capacity of $M$ liters.
+Suppose that we want to fill either one of them to about $X$ liters where $0 \leq X \leq \max(N, M)$. Otherwise, there is no solution. Please not that $N$ and $M$ must follows $N, M \geq 0$.
+
+What is the **fastest way** to get the desired $X$? Assume that we have an unlimited amount of supply.
+
+As an example, we have jug $A$ with a capacity of $12$ ($N = 12$).
+Also, a jug $B$ with a capacity of $11$ ($N = 11$).
+We want to get a jug of $6$ liters ($X = 6$).
+What is the correct step to get there?
+
+```{r}
+# Jug A capacity
+N <- 12
+
+# Jug B capacity
+M <- 11
+
+# Desired result
+X <- 6
+```
+
+## Production Rules
+
+We could say that "production rule" is the same as the "next possible move".
+Hence, we need to determine the production rules for calculating its _branching factors_.
+This is important as it is our way to deciding searching startegy.
+Since we need to find the **fastest way**, we need a **complete** and **optimal** startegy.
+BFS is one of them.
+
+Below is our production rules. Our initial state is $(0, 0)$ in the form of pair $(P, Q)$.
+Since we have $X = 6$, our goal state is either $(6, Q)$ or $(P, 6)$.
+We also could write it as $(X, Q)$ or $(P, X)$.
+
+* Fill the jug $A$ by a tap. That's means $(12, Q)$ since $A$ has a capacity of $12$.
+* Fill the jug $B$ by a tap. That's means $(P, 11)$ since $B$ has a capacit of $11$.
+* Throw away water in the jug $A$. That's means $(0, Q)$.
+* Throw away water in the jug $B$. That's means $(P, 0)$.
+* Fill the jug $A$ by jug $B$.
+  That's means $(P + Q, 0)$ if $P + Q \leq N$.
+  Otherwise, $(P + Y, Q - Y)$ where $Y = N - P$.
+* Fill the jug $B$ by jug $A$.
+  That's means $(0, Q + P)$ if $Q + P \leq M$.
+  Otherwise, $(P - Y, Q + Y)$ where $Y = M - Q$.
+
+From those possible moves, our branching factors is $6$.
+
+```{r}
+# Starting point
+S <- c(0, 0)
+
+# User defined production rules as possible moves
+possible_moves <- c(
+  (function(p, q) c(12, q)),
+  (function(p, q) c(p, 11)),
+  (function(p, q) c(0, q)),
+  (function(p, q) c(p, 0)),
+  (function(p, q) if ((p + q) <= N) c(p + q, 0) else c(p + (N - p), q - (N - p))),
+  (function(p, q) if ((q + p) <= M) c(0, q + p) else c(p - (M - q), q + (M - q)))
+)
+```
+
+## Breadth-First Search Implementation
+
+The implementation is not really different from the usual BFS.
+However, we need to store the traced solution nodes.
+That's means we will use backtracking method here.
+Well, not really.
+I just will use tree data structure instead.
+
+I assumed that the reader understand about BFS, backtracking, and tree data structure so I won't explain it again here.
+First, we need to implement a function that return a string as a key for our list.
+
+```{r}
+to_node <- function(x) paste0("(A = ", x[[1]], ", B = ", x[[2]], ")")
+```
+
+Then, we implements our BFS algorithm here.
+
+```{r}
+library(data.tree)
+
+solution <- Node$new(to_node(S))
+
+bfs <- function() {
+  queue <- list()
+  queue <- c(queue, list(S))
+
+  visited <- list()
+
+  childs <- list()
+  childs[[to_node(S)]] <- solution
+
+  while (length(queue) > 0) {
+    current <- queue[[1]]
+    queue <- queue[-1]
+
+    node <- to_node(current)
+    visited[[node]] <- TRUE
+
+    p <- current[[1]]
+    q <- current[[2]]
+
+    if (p == X || q == X) {
+      queue <- list()
+      next
+    }
+
+    for (next_move in possible_moves) {
+      next_move <- next_move(p, q)
+      next_node <- to_node(next_move)
+
+      if (is.null(visited[[next_node]])) {
+        queue <- c(queue, list(next_move))
+        visited[[node]] <- TRUE
+
+        childs[[next_node]] <- childs[[node]]$AddChild(next_node)
+      }
+    }
+  }
+}
+```
+
+Now, run the BFS and print the solution.
+We will print its entire state tree.
+
+```{r, fig.height = 15}
+# Run our BFS first
+bfs()
+
+# Styling our Graph plot
+SetGraphStyle(solution, rankdir = "TB")
+SetEdgeStyle(solution, arrowhead = "vee", color = "grey35", penwidth = 2)
+
+SetNodeStyle(solution, style = "filled, rounded", shape = "box", fontcolor = "Black", fillcolor = "LightBlue", tooltip = GetDefaultTooltip)
+Do(solution$leaves, function(node) SetNodeStyle(node, fontcolor = "White", fillcolor = "YellowGreen"))
+
+# Display it
+plot(solution)
+```
+
+We have retrieved the solution.
+Take a look on the YellowGreen node.
+Find either $A$ or $B$ that contains $6$.
+It is the solution.
+
+## Closing
+
+I'm new in R.
+This is my first R code that pushed on GitHub.
+I will learn how to visualize the data in the nicer way.
+My code might not efficient.
+However, I successfully implemented the BFS algorithm with tree data structure for storing its solution.
+Before closing this page, verify our solution on the [Water Jugs Puzzle][1] game.
+Choose the highest level which is level 6.
+Then, follow the solution that we have retrieved.
+Enjoy!
+
+[1]: https://www.mathsisfun.com/games/jugs-puzzle.html
