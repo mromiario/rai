@@ -1,0 +1,178 @@
+---
+title: "Simulated Annealing"
+author: "Wisnu Adi Nurcahyo"
+date: "September 20th, 2018"
+
+output:
+  html_notebook:
+    css: presentation.css
+---
+
+## Problem Description
+
+Find the **minimum value** of the following $f(x_1, x_2)$ function where $-10 \leq x_1, x_2 \leq 10$
+by using **simulated annealing** algorithm.
+
+$$
+f(x_1, x_2) = -\left\lvert{\sin(x_1) \cos(x_2) \exp\biggl(\left\lvert{1 - \frac{\sqrt{{x_1}^2 + {x_2}^2}}{\pi}}\right\rvert\biggr)}\right\rvert
+$$
+
+## Implementation
+
+We will implements the simulated annealing algorithm in R.
+The visualization (by `plotly`) also included.
+
+```{r message = FALSE}
+library(plotly)
+```
+
+
+### The Function $f(x_1, x_2)$ in R
+
+```{r}
+f <- (function(x1, x2)
+  -abs(sin(x1) * cos(x2) * exp(abs(1 - (sqrt((x1 ** 2) + (x2 ** 2)) / pi))))
+)
+```
+
+
+### Initializing Contour Plot
+
+In this report, I'm learning about how to visualize my data.
+As the getting started, we will see the initial contour plot below.
+How? First, we need a function to generate a (matrix) mesh grid.
+It is a two dimensional matrix. Then, fill it up by using $f(x_1, x_2)$ above.
+
+```{r}
+# A function for generating mesh grid
+meshgrid <- function(x1, x2 = x1) {
+  n <- length(x1)
+  m <- length(x2)
+  
+  X1 <- matrix(rep(x1, each = m), nrow = m, ncol = n)
+  X2 <- matrix(rep(x2, each = n), nrow = m, ncol = n)
+  
+  return(list(X1, X2))
+}
+ 
+# The generated mesh grid
+seq <- seq(-10.0, 10.0, by = 0.1)
+mesh_grid <- meshgrid(seq)
+mesh_grid_x1 <- mesh_grid[[1]]
+mesh_grid_x2 <- mesh_grid[[2]]
+ 
+# Re-initialize `mesh_grid` variable
+mesh_grid <- mesh_grid_x1
+dim <- dim(mesh_grid)
+ 
+# Fill up `mesh_grid` by using f(x1, x2)
+for (i in 1:dim[[1]])
+  for (j in 1:dim[[2]])
+    mesh_grid[[i, j]] <- f(mesh_grid_x1[[i, j]], mesh_grid_x2[[i, j]])
+ 
+# Display the contour plot
+plot_ly(
+  x = seq,
+  y = seq,
+  z = mesh_grid,
+  type = "contour",
+  hoverinfo = "none",
+  contours = list(coloring = "heatmap")
+) %>% colorbar(title = "Value of f(x1, x2)") %>% layout(
+  xaxis = list(title = "x1", showticklabels = TRUE),
+  yaxis = list(title = "x2", showticklabels = TRUE)
+)
+```
+
+The contour plot above is the generated value from all $x_1$ and $x_2$ where $-10 \leq x_1, x_2 \leq 10$ in $f(x_1, x_2)$ function. The solution is nowhere in the plot.
+Since we want to find its **minimum value**, we could predict that the solution is on the dark purple colored area.
+
+### Simulated Annealing Implementation
+
+```{r}
+# Initialize random solution
+start <- list(x1 = -2, x2 = 5, temperature = 1000)
+start <- c(start, list(acceptance = f(start$x1, start$x2)))
+ 
+# Initialize current solution
+current <- start
+best <- c(current, acceptance = f(current$x1, current$x2))
+ 
+# Generate random point (x1, x2)
+generate <- (function() runif(1, -10, 10))
+
+# Initialize a new mesh grid for z = f(x, y)
+mesh_grid_x <- c()
+mesh_grid_y <- c()
+mesh_grid_z <- c()
+ 
+# Main simulated annealing algorithm
+while (current$temperature > 0) {
+  # Generate a new random solution
+  newly <- list(x1 = generate(), x2 = generate())
+  newly <- c(newly, acceptance = f(newly$x1, newly$x2))
+  
+  # Energy changes a.k.a \Delta E
+  changes <- newly$acceptance - current$acceptance
+  
+  if (changes < 0) {
+    current$x1 <- newly$x1
+    current$x2 <- newly$x2
+    
+    current$acceptance <- newly$acceptance
+    
+    # Adding a new value for each mesh grid
+    mesh_grid_x <- c(mesh_grid_x, current$x1)
+    mesh_grid_y <- c(mesh_grid_y, current$x2)
+    mesh_grid_z <- c(mesh_grid_z, current$acceptance)
+    
+    if (newly$acceptance < best$acceptance) {
+      best$x1 <- newly$x1
+      best$x2 <- newly$x2
+      
+      best$acceptance <- newly$acceptance
+    }
+  }
+  else {
+    # Considering move to the current (x1, x2)
+    P <- exp((-changes) / current$temperature)
+    R <- runif(1)
+    
+    if (R < P) {
+      current$x1 <- newly$x1
+      current$x2 <- newly$x2
+    }
+  }
+  
+  # Decrease the temperature randomly
+  current$temperature <- current$temperature - runif(1, 0.0001, 0.01)
+}
+
+# Retrieve the solution and then print it
+solution <- list(x1 = best$x1, x2 = best$x2, value = best$acceptance)
+print(solution)
+```
+
+By using simulated annealing above, we got the solution. It is $(-8.049689, 9.661877)$ in the form of $(x_1, x_2)$.
+The value of $f(x_1, x_2)$ is $-19.20814$.
+Remember that the solution could be a bit different if we start over and run the algorithm again.
+However, the result would be around $-19$.
+
+### Display the Contour Plot
+
+```{r}
+plot_ly(
+  x = mesh_grid_x,
+  y = mesh_grid_y,
+  z = mesh_grid_z,
+  type = "contour",
+  hoverinfo = "none",
+  contours = list(coloring = "heatmap")
+) %>% colorbar(title = "Value of f(x1, x2)") %>% layout(
+  xaxis = list(title = "x1", showticklabels = TRUE),
+  yaxis = list(title = "x2", showticklabels = TRUE)
+)
+```
+
+We all know that the solution is around $-19$ and it is produced by (around) $(8.0, 9.7)$.
+Hence, by looking at the contour plot above, the solution is on the that dark purple color.

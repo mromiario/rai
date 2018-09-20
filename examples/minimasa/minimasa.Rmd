@@ -1,0 +1,48 @@
+---
+title: "Global Minima Problem"
+author: "Wisnu Adi Nurcahyo"
+date: "September 17th, 2018"
+output: html_notebook
+---
+
+This is an example of Simulated Annealing for finding global minima of a function value.
+
+## Problem Description
+
+Find the value of $x_1$ and $x_2$ to make the following function return closest number to **zero**
+where $-1 \leq x_1, x_2 \leq 1$.
+
+$$
+f(x_1, x_2) = 0.2 \times {x_1}^2 + {x_2}^2 - 0.1 \times \cos(6 \times 3.1415 \times x_1) - 0.1 \times \cos(6 \times 3.1415 \times x_2)
+$$
+
+## Implementation
+
+First, we need several library before implements the SA (simulated annealing) algorithm.
+
+```{r message=FALSE}
+library(pracma)
+library(plotly)
+```
+
+Then, we define the function in R. Also, we will choose a random starting point and creating a Mesh Grid for visualization.
+
+```{r}
+f <- (function(x1, x2)
+  0.2 * (x1 * x1) + (x2 * x2) - 0.1 * cos(6 * 3.1415 * x1) - 0.1 * cos(6 * 3.1415 * x2)
+)
+
+x_start <- c(0.7, -0.2)
+
+mesh_grid <- meshgrid(seq(-1.0, 1.0, by = 0.01), seq(-1.0, 1.0, by = 0.01))
+mesh_x1 <- mesh_grid$X
+mesh_x2 <- mesh_grid$Y
+f_mesh <- mesh_grid
+
+for (i in range(length(mesh_x1[[1]])))
+  for (j in range(length(mesh_x2[[2]])))
+    f_mesh[[i]][[j]] <- f(mesh_x1[[i]][[j]], mesh_x2[[i]][[j]])
+
+plot_ly(z = f_mesh$Y * f_mesh$X, type = "contour", contours = list(coloring = "heatmap", showlabels = TRUE))
+```
+

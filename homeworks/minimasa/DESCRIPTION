@@ -1,0 +1,7 @@
+Package: minimasa
+Title: Simulated Annealing (Global Minima Problem)
+Version: 0.1
+Authors@R: as.person(c("Wisnu Adi Nurcahyo <wisn.adn@gmail.com>))
+Description: A homework on simulated annealing algorithm implementation
+License: MIT
+Depends: R (>= 3.4.4)
