@@ -1,6 +1,6 @@
 # Water Jugs Problem
 
-The HTML page available on [wisn.github.io/rai/examples/jugs.html][1].
+The HTML page available on [wisn.github.io/html/rai/][1].
 
-[1]: https://wisn.github.io/rai/examples/jugs.html
+[1]: https://wisn.github.io/html/rai/jugs.html
 
