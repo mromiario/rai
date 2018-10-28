@@ -1,0 +1,335 @@
+---
+title: "Determine Scholarship Awardee with Fuzzy Logic"
+author: "Wisnu Adi Nurcahyo"
+date: "October 31st, 2018"
+
+output:
+  html_notebook:
+    css: presentation.css
+---
+
+## Problem Description
+
+Given 100 families head with their income (monthly) and their debt respectively from `DataTugas2.csv` in millions Indonesian Rupiah (IDR). Determine top 20 families whose would receive a scholarship with **fuzzy logic**.
+
+## Implementation
+
+### Collecting Data
+
+Let's read `DataTugas2.csv` file and re-format it so it would be more readable.
+
+```{r}
+# Read DataTugas2.csv and convert it to a List
+data <- read.csv(file = "DataTugas2.csv", header = TRUE, sep = ",")
+ 
+# Rename its columns so it would be more readable
+names(data) <- c("number", "income", "debt")
+ 
+# Preview
+data
+```
+
+<br>
+How it looks in scatter plot?
+
+```{r}
+# Using Scattersplot with green dots color
+plot(x = data$income, y = data$debt, xlab = "Income", ylab = "Debt", col = "green", pch = 19)
+```
+
+### Linguistic Variables and Membership Functions
+
+Now, determine a linguistic variable so we could classify them easily.
+
+#### Income
+
+We will use **low**, **moderate**, and **high**. As for the distribution, looks below.
+
+Let,
+
+- $X$ be the income in millions IDR
+- 0.0 is the minimum income
+- 2.0 is the maximum income
+
+$$
+\ \ \ \ \ \ \ \ \ \ \ \ \ low := 0.0 \leq X \leq 0.8\\
+modereate := 0.7 \leq X \leq 1.5\\
+\ \ \ \ \ \ \ \ \ \ \ high := 1.3 \leq X \leq 2.0
+$$
+
+```{r}
+# Create a calculation function
+f <- (function(x, m, var) exp(-(x - m) ** 2 / 2 * var ** 2))
+
+# Building low income membership functions
+income_low <- function(x) {
+  med <- median(seq(0.0, 0.8, by = 0.05))
+  var_total <- 3
+  return(f(x, med, var_total))
+}
+
+# Building moderate income membership functions
+income_moderate <- function(x) {
+  med <- median(seq(0.7, 1.5, by = 0.05))
+  var_total <- 3
+  return(f(x, med, var_total))
+}
+
+# Building high income membership functions
+income_high <- function(x) {
+  med <- median(seq(1.3, 2.0, by = 0.05))
+  var_total <- 3
+  return(f(x, med, var_total))
+}
+
+# Generating plot for distribution preview
+income_matrix <- matrix(data = seq(0.0, 2.0, by = 0.05))
+plot(income_matrix, income_low(income_matrix), type = "l", col = "green", xlab = "income", ylab = "fuzzy set")
+lines(income_matrix, income_moderate(income_matrix), col = "orange")
+lines(income_matrix, income_high(income_matrix), col = "red")
+```
+
+
+#### Debt
+
+We will use **small**, **medium**, and **big**. As for the distribution, looks below.
+
+Let,
+
+- $X$ be the debt in millions IDR
+- 0 is the minimum debt
+- 100 is the maximum debt
+
+$$
+\ \ small := 0 \leq X \leq 30\\
+medium := 20 \leq X \leq 65\\
+\ \ \ \ \ \ \ \ \ \ \ big := 50 \leq X \leq 100
+$$
+
+```{r}
+# Building small debt membership functions
+debt_small <- function(x) {
+  med <- median(0:30)
+  var_total <- 0.04
+  return(f(x, med, var_total))
+}
+
+# Building medium debt membership functions
+debt_medium <- function(x) {
+  med <- median(20:65)
+  var_total <- 0.09
+  return(f(x, med, var_total))
+}
+
+# Building big dept membership functions
+debt_big <- function(x) {
+  med <- median(50:100)
+  var_total <- 0.05
+  return(f(x, med, var_total))
+}
+
+# Generating plot for distribution preview
+debt_matrix <- matrix(data = seq(0, 100, by = 1))
+plot(debt_matrix, debt_small(debt_matrix), type = "l", col = "green", xlab = "debt", ylab = "fuzzy set")
+lines(debt_matrix, debt_medium(debt_matrix), col = "orange")
+lines(debt_matrix, debt_big(debt_matrix), col = "red")
+```
+
+
+#### Acceptance
+
+We will use **accepted** and **declined**.
+
+```{r}
+# Building an acceptance accepted membership function
+acceptance_accepted <- function(x) {
+  var <- 0.07
+  x <- x - 50
+  x <- x * var
+  return((1) / (1 + exp(-x)))
+}
+ 
+# Building an acceptance declined membership function
+acceptance_declined <- function(x) {
+  var <- 0.2
+  x <- x - 50
+  x <- x * var
+  return((1) / (1 + exp(x)))
+}
+ 
+# Initialize accpetance matrix for distribution preview
+acceptance_matrix <- matrix(data = seq(0, 100, by = 1))
+ 
+# Filling up acceptance matrix for accepted families
+acceptance_accepted_matrix <- c()
+for (x in acceptance_matrix) {
+  acceptance_accepted_matrix <- c(acceptance_accepted_matrix, acceptance_accepted(x))
+}
+ 
+# Filling up acceptance matrix for declined families
+acceptance_declined_matrix <- c()
+for (x in acceptance_matrix) {
+  acceptance_declined_matrix <- c(acceptance_declined_matrix, acceptance_declined(x))
+}
+ 
+# Distribution preview
+plot(acceptance_matrix, acceptance_declined_matrix, type = "l", col = "red", xlab = "", ylab = "")
+lines(acceptance_matrix, acceptance_accepted_matrix, col = "green")
+```
+
+
+### Fuzzy Rule
+
+Now, we define a fuzzy rules. This is based on linguistic variables above.
+
+```{r}
+# Define acceptance
+acceptance_sequence <- c("accepted", "accepted", "accepted", "accepted", "declined", "declined", "declined", "declined", "declined")
+ 
+# Convert acceptance into a matrix
+fuzzy_rule <- matrix(acceptance_sequence, nrow = 3, ncol = 3, byrow = TRUE)
+ 
+# Rename them all
+colnames(fuzzy_rule) <- c("debt_small", "debt_medium", "debt_big")
+rownames(fuzzy_rule) <- c("income_low", "income_moderate", "income_high")
+ 
+# Preview
+fuzzy_rule
+```
+
+### Fuzzification
+
+To put it simply, we take the data and put them to each membership functions we already made above.
+
+```{r}
+# Initialize linguistic variables
+income_low_list <- c()
+income_moderate_list <- c()
+income_high_list <- c()
+
+debt_small_list <- c()
+debt_medium_list <- c()
+debt_big_list <- c()
+
+# Disable scientific notation
+options(scipen = 100)
+
+# Apply each membership functions
+for (income in data$income) {
+  income_low_list <- c(income_low_list, income_low(income))
+  income_moderate_list <- c(income_moderate_list, income_moderate(income))
+  income_high_list <- c(income_high_list, income_high(income))
+}
+
+for (debt in data$debt) {
+  debt_small_list <- c(debt_small_list, debt_small(debt))
+  debt_medium_list <- c(debt_medium_list, debt_medium(debt))
+  debt_big_list <- c(debt_big_list, debt_big(debt))
+}
+
+# Building a data frame
+fuzzy_value <- data.frame(
+  row.names = 1:100,
+  
+  income_low = income_low_list,
+  income_moderate = income_moderate_list,
+  income_high = income_high_list,
+  
+  debt_small = debt_small_list,
+  debt_medium = debt_medium_list,
+  debt_big = debt_big_list
+)
+
+# Preview
+fuzzy_value
+```
+
+## Inference
+
+```{r}
+# Building an inference for fuzzy_output
+inference <- function(data) {
+  data <- as.vector(data)
+
+  income_keys <- c("income_low", "income_moderate", "income_high")
+  income <- data[income_keys]
+  
+  debt_keys <- c("debt_small", "debt_medium", "debt_big")
+  debt <- data[debt_keys]
+  
+  result <- list(accepted = c(), declined = c())
+  
+  for (income_key in income_keys) {
+    for (debt_key in debt_keys) {
+      inference_key <- fuzzy_rule[income_key,][[debt_key]]
+      inference_val <- min(data[income_key], data[debt_key])
+      result[[inference_key]] <- c(result[[inference_key]], inference_val)
+    }
+  }
+  
+  result$accepted <- max(result$accepted)
+  result$declined <- max(result$declined)
+  
+  return(result)
+}
+
+# Apply inference to each fuzzy_value
+fuzzy_output <- list(accepted = c(), declined = c())
+for (index in 1:100) {
+  infer <- inference(fuzzy_value[index,])
+  fuzzy_output$accepted <- c(fuzzy_output$accepted, infer$accepted)
+  fuzzy_output$declined <- c(fuzzy_output$declined, infer$declined)
+}
+
+# Convert fuzzy_output into a data frame
+fuzzy_output <- data.frame(row.names = 1:100, accepted = fuzzy_output$accepted, declined = fuzzy_output$declined)
+
+# Preview
+fuzzy_output
+```
+
+## Defuzzification
+
+```{r}
+defuzzification <- function(data) {
+  data_point <- seq(1, 100, by = 1)
+  data_value <- c()
+  
+  for (point in data_point) {
+    accepted <- min(acceptance_accepted(point), data$accepted)
+    declined <- min(acceptance_declined(point), data$declined)
+    
+    data_value <- c(data_value, max(accepted, declined))
+  }
+  
+  return(sum(data_point * data_value) / (sum(data_value)))
+}
+
+acceptance_data <- c()
+for (index in 1:100) {
+  output <- fuzzy_output[index,]
+  acceptance_data <- c(acceptance_data, defuzzification(output))
+}
+
+acceptance_data <- data.frame(row.names = 1:100, acceptance = acceptance_data)
+
+acceptance_data
+```
+
+## Post Processing
+
+```{r}
+data$acceptance <- acceptance_data$acceptance
+
+data
+```
+
+```{r}
+accepted_families <- rev(order(data$acceptance))[1:20]
+#declined_families <- data$acceptance[!(accepted_families %in% 1:100)]
+
+plot(data[accepted_families,]$income, data[accepted_families,]$debt, col = "green", pch = 19, xlab = "income", ylab = "debt")
+par(new = TRUE)
+plot(data$income, data$debt, col = "red", pch = 19, axes = FALSE, xlab = "", ylab = "")
+```
+
